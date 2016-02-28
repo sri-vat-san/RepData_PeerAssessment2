@@ -1,0 +1,243 @@
+---
+title: 'Reproducible Research: Peer Assessment 2'
+author: "Srivatsan Rajagopalan"
+date: "February 28, 2016"
+output: html_document
+---
+
+# Impact of severe weather events in the US on public health and the economy
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE, fig.width=6, fig.height=6)
+```
+
+This is a R Markdown document for Coursera's Reproducible Research course project 2.  
+
+## Synopsis
+We explored the NOAA Storm Database in an effort to answer some basic questions about severe weather events and its impact in the US. The events in the database start in the year 1950 and end in November 2011.  
+
+Specifically, we address the following:  
+
+1. Impact on public health - severe weather events can result in injuries or worse, fatalities  
+    + The analysis revealed that **tornados** are the most dangerous events to the population on both accounts  
+2. Impact on the economy - we will ascertain the economic losses incurred in terms of damages to property and crops  
+    + **Flash floods** caused billions of dollars in property damages, nearly 3 times as much as **thunderstorm winds**  
+    + Crop damages between 1950 and 2011 were caused mainly by **droughts**, followed by **floods**  
+
+
+## Data processing
+
+Set the working directory.
+```{r}
+setwd("~/Coursera_R/05_reprodicbleResearch/courseProject2")
+getwd()
+```
+
+Download the file (if unavailable) and unzip it.
+```{r}
+if (!"repdata-data-StormData.csv.bz2" %in% dir("./")) {
+    download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", destfile = "repdata-data-StormData.csv.bz2")
+    bunzip2("repdata-data-StormData.csv.bz2", overwrite = T, remove = F)
+}
+```
+
+Read the CSV file, check the dimensions of the dataset.
+```{r}
+if (! exists("storm") ) {
+    storm <- read.csv(bzfile("repdata-data-StormData.csv.bz2"))
+}
+dim(storm)
+```
+
+This database is quite sizeable and occupies:
+```{r, echo = FALSE}
+print(object.size(storm), units = "Mb")
+```
+
+Reduce the dataset based on columns that are necessary for the analysis.
+```{r reduce}
+length(unique(storm$EVTYPE))
+
+# Force letters to lowercase
+event_types <- tolower(storm$EVTYPE)
+length(unique(event_types))
+
+# Replace non-alphanumeric by a space
+event_types <- gsub("[^[:alnum:][:space:]]", " ", event_types)
+length(unique(event_types))
+
+# Update EVTYPE in the dataframe
+storm$EVTYPE <- event_types
+
+# Reduce dataframe to only necessary columns
+keepCols <- c("BGN_DATE", "EVTYPE", "FATALITIES", "INJURIES", 
+              "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")
+stormData <- storm[, keepCols]
+```
+
+As expected, after the cleaning we see a reduction in the number of unique event types (from *985* to *874*). We proceed further with our analysis using this updated list of `EVTYPE`.  
+
+## Impact on public health
+We take a closer look at the number of casualities resulting from severe weather events. In particular, we aggregate two types of data: `FATALITIES` and `INJURIES`.
+
+```{r population}
+library(dplyr)  # for %>%
+
+fatalities <- aggregate(FATALITIES ~ EVTYPE, data = stormData, sum)
+injuries <- aggregate(INJURIES ~ EVTYPE, data = stormData, sum)
+```
+
+```{r fatal}
+# Get the top 10 list
+top10Fatal <- fatalities %>% arrange(desc(FATALITIES)) %>% top_n(10)
+top10Fatal
+```
+
+Clearly, tornados caused the most damage to lives, accounting for **5633** deaths.  
+
+```{r injury}
+top10Injury <- injuries %>% arrange(desc(INJURIES)) %>% top_n(10)
+top10Injury
+```
+
+Tornados also caused injuries to a further **91346** people.  
+Note, the `EVTYPE` field can be processed further to merge event types such as `tstm wind` and `thunderstorm wind`.  
+
+## Impact on the economy
+In the raw data, we see that property damage is represented as two fields, a `PROPDMG` value and a `PROPDMGEXP` exponent. Similarly, crop damage is represented as two fields, a `CROPDMG` value and a `CROPDMGEXP` exponent.  
+
+In order to analyse the impact of weather events to the economy, we will convert the property damage and crop damage data into numerical forms using definitions in [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf).
+
+Let's take a look at the exponent columns.
+```{r}
+# Number of unique exponents
+levels(unique(stormData$PROPDMGEXP))
+levels(unique(stormData$CROPDMGEXP))
+```
+
+First, we use a helper function to translate the exponent into numeric type.
+```{r get_exponent}
+# Convert the exponent into numeric
+get_exponent <- function(x) {
+    # h -> hundred, k -> thousand, m -> million, b -> billion
+    if(grepl("h", x, ignore.case = TRUE)) {
+        return(2)
+    }
+    else if(grepl("k", x, ignore.case = TRUE)) {
+        return(3)
+    }
+    else if(grepl("m", x, ignore.case = TRUE)) {
+        return(6)
+    }
+    else if(grepl("b", x, ignore.case = TRUE)) {
+        return(9)
+    }
+    else if(x %in% c('', ' ', '?', '+')) {
+        return(0)
+    }
+    else if (!is.na(as.numeric(x))) {
+        return(as.numeric(x))
+    }
+    else {
+        stop("Invalid exponent value.")
+    }
+}
+```
+
+Second, we calculate the property and crop damage for each event.
+```{r economy}
+# Add columns to facilitate computation of the damages
+prop_dmg_exp <- sapply(stormData$PROPDMGEXP, FUN = get_exponent)
+crop_dmg_exp <- sapply(stormData$CROPDMGEXP, FUN = get_exponent)
+stormData$propDamage <- stormData$PROPDMG * (10 ** prop_dmg_exp)
+stormData$cropDamage <- stormData$CROPDMG * (10 ** crop_dmg_exp)
+```
+  
+```{r}
+prop_dmg <- aggregate(propDamage ~ EVTYPE, data = stormData, sum)
+top10Prop_Damage <- prop_dmg %>% arrange(desc(propDamage)) %>% top_n(10)
+```
+  
+```{r property}
+top10Prop_Damage
+```
+  
+```{r}
+crop_dmg <- aggregate(cropDamage ~ EVTYPE, data = stormData, sum)
+top10Crop_Damage <- crop_dmg %>% arrange(desc(cropDamage)) %>% top_n(10)
+```
+  
+```{r crop}
+top10Crop_Damage
+```
+
+## Results  
+### Health impact of weather events  
+
+Here's a plot showing the most harmful weather events to the population health:
+
+```{r health-plot}
+library(ggplot2)
+library(gridExtra)
+
+# Fatalities plot
+gg1 <- ggplot(data=top10Fatal,
+              aes(x=reorder(EVTYPE, FATALITIES), y=FATALITIES, fill=FATALITIES)) +
+    geom_bar(stat="identity", color = "black") +
+    xlab("Event type") +
+    ylab("Number of fatalities") +
+    theme(legend.position="none") +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+# Injuries plot
+gg2 <- ggplot(data=top10Injury,
+              aes(x=reorder(EVTYPE, INJURIES), y=INJURIES, fill=INJURIES)) +
+    geom_bar(stat="identity", color = "black") +
+    xlab("Event type") +
+    ylab("Number of injuries") +
+    theme(legend.position="none") +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+# Some argnames have changed for grid.arrange. Use `main` instead of `top`
+grid.arrange(gg1, gg2, top = "Impact of weather events on population in the US (1950-2011)")
+
+```
+
+**Tornados** caused the most damage to lives, accounting for more than **5,000** deaths, **90,000** injuries. **Flash floods** and **excessive heat** also resulted in significant causalities.
+
+### Economic impact of weather events  
+
+Here's a plot showing the economic impact of severe weather events in the US between 1950-2011:
+
+```{r economic-plot}
+library(ggplot2)
+library(gridExtra)
+
+# Property damages plot
+gg3 <- ggplot(data=top10Prop_Damage,
+              aes(x=reorder(EVTYPE, propDamage), y=log10(propDamage), fill=propDamage)) +
+    geom_bar(stat="identity", color = "black") +
+    xlab("Event type") +
+    ylab("Property damages in USD (log-scale)") +
+    theme(legend.position="none") +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+# Crop damages plot
+gg4 <- ggplot(data=top10Crop_Damage,
+              aes(x=reorder(EVTYPE, cropDamage), y=log10(cropDamage), fill=cropDamage)) +
+    geom_bar(stat="identity", color = "black") +
+    xlab("Event type") +
+    ylab("Crop damages in USD (log-scale)") +
+    theme(legend.position="none") +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+# Some argnames have changed for grid.arrange. Use `main` instead of `top`
+grid.arrange(gg3, gg4, top = "Impact of weather events on the US economy (1950-2011)")
+
+```
+
+Owing to large-scale losses incurred, property and crop damages are represented in *logarithmic* scale.  
+**Flash floods** and **thunderstorm winds** caused the most damage to property, running into **few trillion** dollars.  
+**Droughts** have cost more than **10 billion dollars** in crop damages. **Floods** and **hails** also posed significant threat to crops during the last 60 years.  
+
+
