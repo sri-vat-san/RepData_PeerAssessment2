@@ -12,13 +12,12 @@ questions about severe weather events and its impact in the US. The
 events in the database start in the year 1950 and end in November 2011.
 
 Specifically, we address the following:  
-1. Impact on public health - severe weather events can result in
-injuries or worse, fatalities  
- + The analysis revealed that tornados are the most dangerous events to
-the population on both accounts 2. Impact on the economy - we will
-ascertain the economic losses incurred in terms of damages to property
-and crops  
- + Flash floods caused billions of dollars in property damages, nearly 3
+
+1. Impact on public health - severe weather events can result in injuries or worse, fatalities  
+    * The analysis revealed that tornados are the most dangerous events to
+the population on both accounts  
+2. Impact on the economy - we will ascertain the economic losses incurred in terms of damages to property and crops  
+    * Flash floods caused billions of dollars in property damages, nearly 3
 times as much as thunderstorm winds + Crop damages between 1950 and 2011
 were caused mainly by droughts, followed by floods
 
