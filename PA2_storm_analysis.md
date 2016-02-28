@@ -18,9 +18,9 @@ Specifically, we address the following:
 the population on both accounts  
 2. Impact on the economy - we will ascertain the economic losses incurred in terms of damages to property and crops  
     * Flash floods caused billions of dollars in property damages, nearly 3
-times as much as thunderstorm winds + Crop damages between 1950 and 2011
-were caused mainly by droughts, followed by floods
-
+times as much as thunderstorm winds  
+    * Crop damages between 1950 and 2011 were caused mainly by droughts, followed by floods  
+    
 Data processing
 ---------------
 
@@ -125,7 +125,7 @@ weather events. In particular, we aggregate two types of data:
     ## 9       high wind        248
     ## 10      avalanche        224
 
-Clearly, tornados caused the most damage to lives, accounting for
+Clearly, **tornados** caused the most damage to lives, accounting for
 **5633** deaths.
 
     top10Injury <- injuries %>% arrange(desc(INJURIES)) %>% top_n(10)
@@ -146,7 +146,7 @@ Clearly, tornados caused the most damage to lives, accounting for
     ## 9  thunderstorm wind     1488
     ## 10              hail     1361
 
-Tornados also caused injuries to a further **91346** people.  
+**Tornados** also caused injuries to a further **91346** people.  
 Note, the `EVTYPE` field can be processed further to merge event types
 such as `tstm wind` and `thunderstorm wind`.
 
